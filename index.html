@@ -265,7 +265,7 @@
             }
             
             try {
-                const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(SIMPLE_CONFIG.csvUrl)}`);
+                const response = await fetch(SIMPLE_CONFIG.csvUrl);
                 if (!response.ok) throw new Error('Failed to fetch');
                 
                 const csv = await response.text();
