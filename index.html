@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>momencio AI SEO Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        const CONFIG = {
+            enabled: true,
+            formUrl: 'https://forms.gle/7HgYyJQpCApwnstWA',
+            csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM5SGxdOC-9grCcGwoFlB9OBZVl9dM1aNFap5O7whbYUqy1a3dw4eKp_tPsYLj9-eYl6tKnvdS9WG0/pub?gid=821056934&single=true&output=csv'
+        };
+    </script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; }
+        .header { background: linear-gradient(135deg, #2E3192, #7B2CBF); color: white; padding: 2rem; text-align: center; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+        .stat-number { font-size: 3rem; font-weight: bold; color: #2E3192; }
+        .stat-label { color: #64748b; margin-top: 0.5rem; font-size: 0.875rem; }
+        .card { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .btn { background: linear-gradient(135deg, #2E3192, #7B2CBF); color: white; padding: 0.75rem 2rem; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+        .btn:hover { opacity: 0.9; }
+        .btn-secondary { background: #00B4D8; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f1f5f9; padding: 1rem; text-align: left; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; font-size: 0.875rem; }
+        td { padding: 1rem; border-bottom: 1px solid #e2e8f0; font-size: 0.875rem; }
+        tr:hover { background: #f8fafc; }
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .tabs { display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid #e2e8f0; }
+        .tab { padding: 1rem 1.5rem; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+        .tab.active { color: #2E3192; border-bottom-color: #2E3192; font-weight: 600; }
+        .login { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-card { background: white; padding: 3rem; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); max-width: 400px; width: 100%; }
+        .input { width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
+        .input:focus { outline: none; border-color: #2E3192; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            if (lines.length < 2) return [];
+            
+            return lines.slice(1).map((line, i) => {
+                const match = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
+                if (!match) return null;
+                const vals = match.map(v => v.replace(/^"|"$/g, '').trim());
+                
+                return {
+                    id: i + 1,
+                    date: vals[1] || '',
+                    week: vals[2] || '',
+                    platform: vals[3] || '',
+                    keyword: vals[4] || '',
+                    mentioned: vals[5] === 'Yes',
+                    cited: vals[6] === 'Yes',
+                    prominence: vals[7] || '',
+                    sentiment: vals[8] || 'Neutral',
+                    notes: vals[9] || ''
+                };
+            }).filter(Boolean);
+        }
+        
+        async function fetchData() {
+            try {
+                const res = await fetch(CONFIG.csvUrl);
+                const csv = await res.text();
+                return parseCSV(csv);
+            } catch (e) {
+                console.error(e);
+                return [];
+            }
+        }
+        
+        function Login({ onLogin }) {
+            const [pw, setPw] = useState('');
+            const [err, setErr] = useState('');
+            
+            return (
+                <div className="login">
+                    <div className="login-card">
+                        <div style={{textAlign: 'center', marginBottom: '2rem'}}>
+                            <div style={{background: 'linear-gradient(135deg, #2E3192, #7B2CBF)', color: 'white', padding: '1rem 2rem', borderRadius: '8px', display: 'inline-block', fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem'}}>momencio</div>
+                            <h2 style={{fontSize: '1.5rem', marginBottom: '0.5rem'}}>AI SEO Dashboard</h2>
+                            <p style={{color: '#64748b'}}>Enter password</p>
+                        </div>
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            if (pw === 'momencio2025') onLogin();
+                            else setErr('Wrong password');
+                        }}>
+                            <input
+                                type="password"
+                                className="input"
+                                value={pw}
+                                onChange={(e) => { setPw(e.target.value); setErr(''); }}
+                                placeholder="Password"
+                                autoFocus
+                                style={{marginBottom: '1rem'}}
+                            />
+                            {err && <p style={{color: '#ef4444', fontSize: '0.875rem', marginBottom: '1rem'}}>{err}</p>}
+                            <button type="submit" className="btn" style={{width: '100%'}}>Login</button>
+                            <p style={{textAlign: 'center', marginTop: '1rem', fontSize: '0.75rem', color: '#64748b'}}>
+                                Demo: <strong>momencio2025</strong>
+                            </p>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+        
+        function App() {
+            const [auth, setAuth] = useState(false);
+            const [tab, setTab] = useState('dashboard');
+            const [data, setData] = useState([]);
+            const [loading, setLoading] = useState(false);
+            
+            useEffect(() => {
+                if (auth) loadData();
+            }, [auth]);
+            
+            const loadData = async () => {
+                setLoading(true);
+                const d = await fetchData();
+                setData(d);
+                setLoading(false);
+            };
+            
+            if (!auth) return <Login onLogin={() => setAuth(true)} />;
+            
+            const mentions = data.filter(d => d.mentioned).length;
+            const citations = data.filter(d => d.cited).length;
+            const citRate = mentions > 0 ? ((citations / mentions) * 100).toFixed(0) : 0;
+            const positive = data.filter(d => d.sentiment === 'Positive').length;
+            const posRate = data.length > 0 ? ((positive / data.length) * 100).toFixed(0) : 0;
+            
+            return (
+                <div>
+                    <div className="header">
+                        <h1 style={{fontSize: '2.5rem', marginBottom: '0.5rem'}}>momencio AI SEO Dashboard</h1>
+                        <p style={{opacity: 0.9}}>Track visibility across AI platforms</p>
+                    </div>
+                    
+                    <div className="container">
+                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '2rem'}}>
+                            <div className="tabs">
+                                <div className={`tab ${tab === 'dashboard' ? 'active' : ''}`} onClick={() => setTab('dashboard')}>Dashboard</div>
+                                <div className={`tab ${tab === 'data' ? 'active' : ''}`} onClick={() => setTab('data')}>All Tests</div>
+                            </div>
+                            <div>
+                                <button className="btn btn-secondary" style={{marginRight: '0.5rem'}} onClick={() => window.open(CONFIG.formUrl)}>
+                                    Add Data
+                                </button>
+                                <button className="btn" onClick={loadData} disabled={loading}>
+                                    {loading ? 'Loading...' : 'Refresh'}
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {tab === 'dashboard' && (
+                            <>
+                                <div className="stats">
+                                    <div className="stat-card">
+                                        <div className="stat-number">{mentions}</div>
+                                        <div className="stat-label">Total Mentions</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-number">{citRate}%</div>
+                                        <div className="stat-label">Citation Rate</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-number">{posRate}%</div>
+                                        <div className="stat-label">Positive Sentiment</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-number">{data.length}</div>
+                                        <div className="stat-label">Total Tests</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="card">
+                                    <h3 style={{fontSize: '1.25rem', marginBottom: '1.5rem', fontWeight: 600}}>Recent Tests</h3>
+                                    <div style={{overflowX: 'auto'}}>
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Platform</th>
+                                                    <th>Keyword</th>
+                                                    <th>Mentioned</th>
+                                                    <th>Cited</th>
+                                                    <th>Prominence</th>
+                                                    <th>Sentiment</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data.slice(-10).reverse().map(d => (
+                                                    <tr key={d.id}>
+                                                        <td>{d.date}</td>
+                                                        <td><strong>{d.platform}</strong></td>
+                                                        <td>{d.keyword}</td>
+                                                        <td><span className={`badge ${d.mentioned ? 'badge-success' : 'badge-danger'}`}>{d.mentioned ? 'Yes' : 'No'}</span></td>
+                                                        <td><span className={`badge ${d.cited ? 'badge-success' : 'badge-danger'}`}>{d.cited ? 'Yes' : 'No'}</span></td>
+                                                        <td>{d.prominence}</td>
+                                                        <td><span className={`badge badge-${d.sentiment === 'Positive' ? 'success' : d.sentiment === 'Negative' ? 'danger' : 'warning'}`}>{d.sentiment}</span></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        
+                        {tab === 'data' && (
+                            <div className="card">
+                                <h3 style={{fontSize: '1.25rem', marginBottom: '1.5rem', fontWeight: 600}}>All Tests ({data.length} total)</h3>
+                                <div style={{overflowX: 'auto'}}>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Week</th>
+                                                <th>Platform</th>
+                                                <th>Keyword</th>
+                                                <th>Mentioned</th>
+                                                <th>Cited</th>
+                                                <th>Prominence</th>
+                                                <th>Sentiment</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.map(d => (
+                                                <tr key={d.id}>
+                                                    <td>{d.date}</td>
+                                                    <td>{d.week}</td>
+                                                    <td><strong>{d.platform}</strong></td>
+                                                    <td>{d.keyword}</td>
+                                                    <td><span className={`badge ${d.mentioned ? 'badge-success' : 'badge-danger'}`}>{d.mentioned ? 'Yes' : 'No'}</span></td>
+                                                    <td><span className={`badge ${d.cited ? 'badge-success' : 'badge-danger'}`}>{d.cited ? 'Yes' : 'No'}</span></td>
+                                                    <td><span style={{fontSize: '0.75rem', color: '#64748b'}}>{d.prominence}</span></td>
+                                                    <td><span className={`badge badge-${d.sentiment === 'Positive' ? 'success' : d.sentiment === 'Negative' ? 'danger' : 'warning'}`}>{d.sentiment}</span></td>
+                                                    <td style={{maxWidth: '200px', fontSize: '0.75rem', color: '#64748b'}}>{d.notes}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        
+        ReactDOM.render(<App />, document.getElementById('root'));
+        setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 100);
+    </script>
+</body>
+</html>
